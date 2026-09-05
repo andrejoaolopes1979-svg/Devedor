@@ -1,0 +1,2 @@
+// Gerador automático de ícones SVG base64 em formato PNG de dados URI ou placeholders para PWA
+// Para garantir que o PWA reconheça ícones válidos, vamos criar ícones SVG reais e referenciá-los no manifest.json
