@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Devedor - Controle de Cobranças</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <!-- Tailwind CSS CDN para estilização mobile moderna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js para Dashboard Analítica -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        /* Esconder scrollbar mantendo funcionalidade */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen max-w-md mx-auto bg-slate-900 overflow-hidden relative shadow-2xl border-x border-slate-800">
+
+    <!-- Top Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center z-10">
+        <div class="flex items-center space-x-2">
+            <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-wallet text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-tight text-white">DevedorApp</h1>
+                <p class="text-xs text-slate-400">Controle Inteligente</p>
+            </div>
+        </div>
+        <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1 shadow-lg shadow-indigo-600/30 transition-all active:scale-95">
+            <i class="fa-solid fa-plus"></i>
+            <span>Novo Devedor</span>
+        </button>
+    </header>
+
+    <!-- Main Content Area (SPA Views) -->
+    <main class="flex-1 overflow-y-auto pb-24 no-scrollbar p-4">
+        
+        <!-- ABA 1: LISTA DE DEVEDORES -->
+        <section id="view-devedores" class="tab-content active space-y-4">
+            <!-- Barra de Filtros / Busca -->
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" oninput="renderDevedores()" placeholder="Buscar devedor ou produto..." class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                </div>
+                <select id="filterStatus" onchange="renderDevedores()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500">
+                    <option value="all">Todos</option>
+                    <option value="pendente">Pendentes</option>
+                    <option value="hoje">Receber Hoje 🚨</option>
+                    <option value="quitado">Quitados</option>
+                </select>
+            </div>
+
+            <!-- Cards Container -->
+            <div id="devedoresList" class="space-y-3">
+                <!-- Preenchido via JavaScript -->
+            </div>
+        </section>
+
+        <!-- ABA 2: DASHBOARD ANALÍTICA -->
+        <section id="view-dashboard" class="tab-content space-y-4">
+            <!-- Cards Resumo -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
+                    <p class="text-xs text-slate-400 font-medium">Total a Receber</p>
+                    <h3 id="dashTotalReceber" class="text-lg font-bold text-emerald-400 mt-1">R$ 0,00</h3>
+                </div>
+                <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
+                    <p class="text-xs text-slate-400 font-medium">Total Já Recebido</p>
+                    <h3 id="dashTotalRecebido" class="text-lg font-bold text-indigo-400 mt-1">R$ 0,00</h3>
+                </div>
+            </div>
+
+            <!-- Gráfico de Status -->
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl">
+                <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
+                    <span>Status Geral das Dívidas</span>
+                    <i class="fa-solid fa-chart-pie text-indigo-400"></i>
+                </h4>
+                <div class="relative w-full h-48 flex justify-center items-center">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfico de Projeção Mensal -->
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl">
+                <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
+                    <span>Projeção de Recebimento (Próx. Meses)</span>
+                    <i class="fa-solid fa-chart-column text-indigo-400"></i>
+                </h4>
+                <div class="relative w-full h-48">
+                    <canvas id="projectionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABA 3: CONFIGURAÇÕES / INFO -->
+        <section id="view-config" class="tab-content space-y-4">
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl space-y-3">
+                <h4 class="text-sm font-semibold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-database text-indigo-400"></i>
+                    <span>Gerenciamento de Dados</span>
+                </h4>
+                <p class="text-xs text-slate-400">Seus dados ficam salvos de forma segura e exclusiva no armazenamento local do seu celular.</p>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="exportData()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 px-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Exportar JSON</span>
+                    </button>
+                    <label class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 px-3 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 cursor-pointer">
+                        <i class="fa-solid fa-upload"></i>
+                        <span>Importar JSON</span>
+                        <input type="file" id="importFile" onchange="importData(event)" accept=".json" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl space-y-2">
+                <h4 class="text-sm font-semibold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-info text-indigo-400"></i>
+                    <span>Regras do Sistema</span>
+                </h4>
+                <ul class="text-xs text-slate-400 space-y-1.5 list-disc pl-4">
+                    <li>Se o valor pago for maior que a parcela vigente, o excesso abate automaticamente nas próximas parcelas.</li>
+                    <li>Alerta visual 🚨 exibido no dia exato do vencimento de cada devedor.</li>
+                    <li>Desenvolvido para uso exclusivo em dispositivos móveis (PWA/SPA).</li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="absolute bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur border-t border-slate-700 py-2 px-6 flex justify-around items-center z-20">
+        <button onclick="switchTab('devedores')" id="nav-devedores" class="flex flex-col items-center text-indigo-400 transition-colors">
+            <i class="fa-solid fa-users text-lg"></i>
+            <span class="text-[10px] font-medium mt-1">Devedores</span>
+        </button>
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center text-slate-400 hover:text-indigo-400 transition-colors">
+            <i class="fa-solid fa-chart-pie text-lg"></i>
+            <span class="text-[10px] font-medium mt-1">Dashboard</span>
+        </button>
+        <button onclick="switchTab('config')" id="nav-config" class="flex flex-col items-center text-slate-400 hover:text-indigo-400 transition-colors">
+            <i class="fa-solid fa-gear text-lg"></i>
+            <span class="text-[10px] font-medium mt-1">Ajustes</span>
+        </button>
+    </nav>
+
+    <!-- Modal Adicionar/Editar Devedor -->
+    <div id="devedorModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-2xl border border-slate-700 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 id="modalTitle" class="font-bold text-white text-base">Novo Devedor</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="devedorForm" onsubmit="saveDevedor(event)" class="space-y-3">
+                <input type="hidden" id="devedorId">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Nome do Devedor</label>
+                    <input type="text" id="nome" required placeholder="Ex: Carlos Silva" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Produto / Motivo</label>
+                    <input type="text" id="produto" required placeholder="Ex: Smartphone X" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Data de Aquisição</label>
+                        <input type="date" id="dataAquisicao" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Nº de Parcelas</label>
+                        <input type="number" id="numParcelas" min="1" required placeholder="Ex: 5" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Valor Total (R$)</label>
+                    <input type="number" step="0.01" id="valorTotal" required placeholder="Ex: 500.00" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all mt-4">
+                    Salvar Devedor
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Pagamento (Abatimento Inteligente) -->
+    <div id="pagamentoModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 w-full max-w-sm rounded-2xl border border-slate-700 p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 class="font-bold text-white text-base">Registrar Pagamento</h3>
+                <button onclick="closePagamentoModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <input type="hidden" id="pagamentoDevedorId">
+            <div class="space-y-2 text-xs text-slate-300">
+                <p id="infoParcelaVigente" class="bg-slate-900 p-3 rounded-xl border border-slate-700/50 leading-relaxed"></p>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Valor Recebido (R$)</label>
+                <input type="number" step="0.01" id="valorPago" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                <p class="text-[10px] text-slate-400 mt-1">💡 Se o valor for maior que a parcela vigente, o excedente abaterá automaticamente nas próximas parcelas.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closePagamentoModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium">Cancelar</button>
+                <button onclick="processarPagamento()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/30">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript da Aplicação -->
+    <script>
+        // Registro do Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('ServiceWorker registrado com sucesso!', reg))
+                    .catch(err => console.log('Erro ao registrar ServiceWorker:', err));
+            });
+        }
+
+        // Estado Global da Aplicação
+        let devedores = JSON.parse(localStorage.getItem('devedores_app')) || [];
+        let statusChartInstance = null;
+        let projectionChartInstance = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDevedores();
+            initCharts();
+            // Definir data padrão hoje no formulário
+            document.getElementById('dataAquisicao').valueAsDate = new Date();
+        });
+
+        // Navegação SPA
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => {
+                el.classList.remove('text-indigo-400');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            const navBtn = document.getElementById(`nav-${tabId}`);
+            navBtn.classList.remove('text-slate-400');
+            navBtn.classList.add('text-indigo-400');
+
+            if (tabId === 'dashboard') {
+                updateDashboard();
+            }
+        }
+
+        // Modais
+        function openModal(id = null) {
+            const modal = document.getElementById('devedorModal');
+            const form = document.getElementById('devedorForm');
+            form.reset();
+            document.getElementById('devedorId').value = '';
+            document.getElementById('modalTitle').innerText = 'Novo Devedor';
+            document.getElementById('dataAquisicao').valueAsDate = new Date();
+
+            if (id) {
+                const dev = devedores.find(d => d.id === id);
+                if (dev) {
+                    document.getElementById('modalTitle').innerText = 'Editar Devedor';
+                    document.getElementById('devedorId').value = dev.id;
+                    document.getElementById('nome').value = dev.nome;
+                    document.getElementById('produto').value = dev.produto;
+                    document.getElementById('dataAquisicao').value = dev.dataAquisicao;
+                    document.getElementById('numParcelas').value = dev.numParcelas;
+                    document.getElementById('valorTotal').value = dev.valorTotal;
+                }
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('devedorModal').classList.add('hidden');
+        }
+
+        // Salvar / Criar ou Editar Devedor
+        function saveDevedor(e) {
+            e.preventDefault();
+            const id = document.getElementById('devedorId').value;
+            const nome = document.getElementById('nome').value;
+            const produto = document.getElementById('produto').value;
+            const dataAquisicao = document.getElementById('dataAquisicao').value;
+            const numParcelas = parseInt(document.getElementById('numParcelas').value);
+            const valorTotal = parseFloat(document.getElementById('valorTotal').value);
+            const valorParcelaBase = valorTotal / numParcelas;
+
+            if (id) {
+                // Editar existente mantendo histórico se possível ou recalculando parcelas restantes
+                const index = devedores.findIndex(d => d.id === id);
+                if (index !== -1) {
+                    devedores[index].nome = nome;
+                    devedores[index].produto = produto;
+                    devedores[index].dataAquisicao = dataAquisicao;
+                    devedores[index].numParcelas = numParcelas;
+                    devedores[index].valorTotal = valorTotal;
+                    // Recalcular valor base da parcela
+                    devedores[index].valorParcela = valorParcelaBase;
+                }
+            } else {
+                // Criar novo com array de parcelas detalhadas
+                const parcelas = [];
+                const baseDate = new Date(dataAquisicao + 'T00:00:00');
+                
+                for (let i = 1; i <= numParcelas; i++) {
+                    let vencimento = new Date(baseDate);
+                    vencimento.setMonth(vencimento.getMonth() + i);
+                    
+                    parcelas.push({
+                        numero: i,
+                        valorOriginal: valorParcelaBase,
+                        valorRestante: valorParcelaBase,
+                        vencimento: vencimento.toISOString().split('T')[0],
+                        status: 'pendente' // pendente, pago
+                    });
+                }
+
+                const novoDevedor = {
+                    id: '_' + Math.random().toString(36).substr(2, 9),
+                    nome,
+                    produto,
+                    dataAquisicao,
+                    numParcelas,
+                    valorTotal,
+                    parcelas
+                };
+                devedores.push(novoDevedor);
+            }
+
+            saveAndRefresh();
+            closeModal();
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem('devedores_app', JSON.stringify(devedores));
+            renderDevedores();
+        }
+
+        // Deletar Devedor
+        function deleteDevedor(id) {
+            if (confirm('Deseja realmente excluir este devedor e todo o seu histórico?')) {
+                devedores = devedores.filter(d => d.id !== id);
+                saveAndRefresh();
+            }
+        }
+
+        // Renderizar Lista de Devedores com Alerta Visual
+        function renderDevedores() {
+            const container = document.getElementById('devedoresList');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filter = document.getElementById('filterStatus').value;
+            const hojeStr = new Date().toISOString().split('T')[0];
+
+            container.innerHTML = '';
+
+            const filtered = devedores.filter(dev => {
+                const matchText = dev.nome.toLowerCase().includes(search) || dev.produto.toLowerCase().includes(search);
+                if (!matchText) return false;
+
+                // Verificar status geral
+                const todasPagas = dev.parcelas.every(p => p.status === 'pago');
+                const proximaParcela = dev.parcelas.find(p => p.status === 'pendente');
+                const ehHoje = proximaParcela && proximaParcela.vencimento === hojeStr;
+
+                if (filter === 'pendente' && todasPagas) return false;
+                if (filter === 'quitado' && !todasPagas) return false;
+                if (filter === 'hoje' && !ehHoje) return false;
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500">
+                        <i class="fa-solid fa-folder-open text-3xl mb-2"></i>
+                        <p class="text-sm">Nenhum devedor encontrado.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(dev => {
+                const pagas = dev.parcelas.filter(p => p.status === 'pago').length;
+                const total = dev.numParcelas;
+                const progresso = (pagas / total) * 100;
+                const todasPagas = pagas === total;
+
+                // Próxima parcela pendente
+                const proxima = dev.parcelas.find(p => p.status === 'pendente');
+                let badgeHoje = '';
+                let cardBorder = 'border-slate-700/60';
+
+                if (proxima && proxima.vencimento === hojeStr) {
+                    badgeHoje = `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Vence Hoje!
+                    </span>`;
+                    cardBorder = 'border-rose-500/60 shadow-lg shadow-rose-500/10';
+                }
+
+                const html = `
+                    <div class="bg-slate-800 border ${cardBorder} rounded-2xl p-4 space-y-3 transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-white text-sm">${dev.nome}</h3>
+                                    ${badgeHoje}
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">📦 ${dev.produto}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-emerald-400">R$ ${dev.valorTotal.toFixed(2)}</span>
+                                <p class="text-[10px] text-slate-400">${pagas}/${total} parcelas</p>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Progresso -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>Progresso</span>
+                                <span>${progresso.toFixed(0)}%</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${progresso}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Próximo Vencimento / Detalhes -->
+                        <div class="bg-slate-900/60 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                            <div>
+                                ${proxima ? `
+                                    <span class="text-slate-400">Parcela ${proxima.numero}ª:</span>
+                                    <strong class="text-white ml-1">R$ ${proxima.valorRestante.toFixed(2)}</strong>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Vencimento: ${formatDate(proxima.vencimento)}</div>
+                                ` : `
+                                    <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-check-circle"></i> Dívida totalmente quitada!</span>
+                                `}
+                            </div>
+                            <div class="flex items-center gap-1">
+                                ${!todasPagas ? `
+                                    <button onclick="openPagamentoModal('${dev.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow transition-all active:scale-95 flex items-center gap-1">
+                                        <i class="fa-solid fa-dollar-sign"></i> Pagar
+                                    </button>
+                                ` : ''}
+                                <button onclick="openModal('${dev.id}')" class="bg-slate-700 hover:bg-slate-600 text-slate-300 p-1.5 rounded-lg text-xs" title="Editar">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button onclick="deleteDevedor('${dev.id}')" class="bg-slate-700 hover:bg-rose-600/30 hover:text-rose-400 text-slate-300 p-1.5 rounded-lg text-xs transition-colors" title="Excluir">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // Modal de Pagamento & Abatimento Antecipado
+        function openPagamentoModal(devedorId) {
+            const dev = devedores.find(d => d.id === devedorId);
+            if (!dev) return;
+
+            const proxima = dev.parcelas.find(p => p.status === 'pendente');
+            if (!proxima) return;
+
+            document.getElementById('pagamentoDevedorId').value = devedorId;
+            document.getElementById('valorPago').value = proxima.valorRestante.toFixed(2);
+            document.getElementById('infoParcelaVigente').innerHTML = `
+                Devedor: <strong>${dev.nome}</strong><br>
+                Parcela Vigente: <strong>${proxima.numero}ª</strong> (Vencimento: ${formatDate(proxima.vencimento)})<br>
+                Valor da Parcela: <strong class="text-emerald-400">R$ ${proxima.valorRestante.toFixed(2)}</strong>
+            `;
+            document.getElementById('pagamentoModal').classList.remove('hidden');
+        }
+
+        function closePagamentoModal() {
+            document.getElementById('pagamentoModal').classList.add('hidden');
+        }
+
+        // Lógica Principal de Abatimento (Maior que parcela vigente abate nas próximas)
+        function processarPagamento() {
+            const devedorId = document.getElementById('pagamentoDevedorId').value;
+            let valorPago = parseFloat(document.getElementById('valorPago').value);
+            const dev = devedores.find(d => d.id === devedorId);
+
+            if (!dev || isNaN(valorPago) || valorPago <= 0) {
+                alert('Insira um valor válido.');
+                return;
+            }
+
+            // Percorrer parcelas pendentes e abater o valor pago
+            for (let i = 0; i < dev.parcelas.length; i++) {
+                let p = dev.parcelas[i];
+                if (p.status === 'pendente') {
+                    if (valorPago >= p.valorRestante) {
+                        valorPago -= p.valorRestante;
+                        p.valorRestante = 0;
+                        p.status = 'pago';
+                    } else {
+                        p.valorRestante -= valorPago;
+                        valorPago = 0;
+                    }
+                }
+                if (valorPago <= 0) break;
+            }
+
+            saveAndRefresh();
+            closePagamentoModal();
+        }
+
+        // Dashboard Analítica e Gráficos
+        function updateDashboard() {
+            let totalReceber = 0;
+            let totalRecebido = 0;
+            let quitadosCount = 0;
+            let pendentesCount = 0;
+
+            devedores.forEach(dev => {
+                dev.parcelas.forEach(p => {
+                    if (p.status === 'pago') {
+                        totalRecebido += (p.valorOriginal - (p.valorRestante || 0)); // computar o pago
+                    } else {
+                        totalReceber += p.valorRestante;
+                    }
+                });
+                const todasPagas = dev.parcelas.every(p => p.status === 'pago');
+                if (todasPagas) quitadosCount++;
+                else pendentesCount++;
+            });
+
+            document.getElementById('dashTotalReceber').innerText = `R$ ${totalReceber.toFixed(2)}`;
+            document.getElementById('dashTotalRecebido').innerText = `R$ ${totalRecebido.toFixed(2)}`;
+
+            // Atualizar Gráfico de Status (Pie)
+            if (statusChartInstance) {
+                statusChartInstance.data.datasets[0].data = [pendentesCount, quitadosCount];
+                statusChartInstance.update();
+            }
+
+            // Atualizar Gráfico de Projeção Mensal
+            updateProjectionChart();
+        }
+
+        function initCharts() {
+            // Gráfico de Status
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pendentes', 'Quitados'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#6366f1', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Projeção
+            const ctxProj = document.getElementById('projectionChart').getContext('2d');
+            projectionChartInstance = new Chart(ctxProj, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Valor a Receber (R$)',
+                        data: [],
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#1e293b' } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateProjectionChart() {
+            // Agrupar valores pendentes por mês (YYYY-MM)
+            const mesesMap = {};
+            devedores.forEach(dev => {
+                dev.parcelas.forEach(p => {
+                    if (p.status === 'pendente') {
+                        const mesAno = p.vencimento.substring(0, 7); // YYYY-MM
+                        mesesMap[mesAno] = (mesesMap[mesAno] || 0) + p.valorRestante;
+                    }
+                });
+            });
+
+            // Ordenar meses
+            const mesesOrdenados = Object.keys(mesesMap).sort();
+            const valores = mesesOrdenados.map(m => mesesMap[m]);
+            const labelsFormatados = mesesOrdenados.map(m => {
+                const [ano, mes] = m.split('-');
+                return `${mes}/${ano}`;
+            });
+
+            if (projectionChartInstance) {
+                projectionChartInstance.data.labels = labelsFormatados.length ? labelsFormatados : ['Nenhum'];
+                projectionChartInstance.data.datasets[0].data = valores.length ? valores : [0];
+                projectionChartInstance.update();
+            }
+        }
+
+        // Exportar e Importar Dados
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(devedores, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `devedores_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const fileReader = new FileReader();
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            devedores = imported;
+                            saveAndRefresh();
+                            alert('Dados importados com sucesso!');
+                        } else {
+                            alert('Arquivo JSON inválido.');
+                        }
+                    } catch (err) {
+                        alert('Erro ao processar arquivo JSON.');
+                    }
+                };
+            }
+        }
+
+        // Utilidade de Data
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const [ano, mes, dia] = dateStr.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+    </script>
+</body>
+</html>
