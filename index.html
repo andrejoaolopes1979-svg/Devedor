@@ -172,6 +172,23 @@
         </button>
     </nav>
 
+    <!-- Banner Prompt de Instalação PWA -->
+    <div id="installPromptBanner" class="fixed bottom-16 left-4 right-4 bg-indigo-600 border border-indigo-400/30 p-4 rounded-2xl shadow-2xl z-50 hidden flex items-center justify-between text-white animate-bounce-subtle">
+        <div class="flex items-center space-x-3">
+            <div class="bg-white text-indigo-600 p-2.5 rounded-xl shadow">
+                <i class="fa-solid fa-cloud-arrow-down text-lg"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm">Instalar DevedorApp</h4>
+                <p class="text-[11px] text-indigo-100">Adicione à tela inicial para acesso rápido em tela inteira!</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="installPWA()" class="bg-white text-indigo-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow hover:bg-indigo-50 transition-all active:scale-95">Instalar</button>
+            <button onclick="dismissInstallBanner()" class="text-indigo-200 hover:text-white p-1.5"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+    </div>
+
     <!-- Modal Adicionar/Editar Devedor -->
     <div id="devedorModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-2xl border border-slate-700 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -690,6 +707,36 @@
             if (!dateStr) return '';
             const [ano, mes, dia] = dateStr.split('-');
             return `${dia}/${mes}/${ano}`;
+        }
+
+        // Captura do evento de Instalação PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Exibir o banner de instalação imediatamente ao acessar
+            setTimeout(() => {
+                document.getElementById('installPromptBanner').classList.remove('hidden');
+            }, 1000);
+        });
+
+        async function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('Usuário aceitou instalar o PWA');
+                }
+                deferredPrompt = null;
+                document.getElementById('installPromptBanner').classList.add('hidden');
+            } else {
+                // Fallback para iOS ou navegadores que não disparam o prompt automático
+                alert('Para instalar:\n\n📱 No Android: Toque no menu do navegador (três pontos) e selecione "Instalar aplicativo" ou "Adicionar à tela inicial".\n\n🍎 No iPhone/iPad: Toque no botão de Compartilhar e selecione "Adicionar à Tela de Início".');
+            }
+        }
+
+        function dismissInstallBanner() {
+            document.getElementById('installPromptBanner').classList.add('hidden');
         }
     </script>
 </body>
