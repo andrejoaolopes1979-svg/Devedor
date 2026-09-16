@@ -1,0 +1,10 @@
+{
+  "name": "devedor-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "DevedorApp - PWA de controle de cobranças com backup durável em IndexedDB",
+  "scripts": {
+    "test": "node test/reconcile.test.js",
+    "lint": "node scripts/syntax-check.js"
+  }
+}

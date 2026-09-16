@@ -17,8 +17,14 @@ O **DevedorApp** é um aplicativo web progressivo (**PWA**) e de página única 
    - Gráficos interativos (via Chart.js) exibindo o status geral das dívidas (Pendentes x Quitados) e projeções de recebimentos futuros por mês.
 5. **Experiência Exclusiva Mobile (PWA & SPA)**:
    - Design moderno otimizado para telas verticais de smartphones.
-   - Funcionamento offline via Service Worker e armazenamento local (`localStorage`).
+   - Funcionamento offline via Service Worker.
    - Recursos de exportação e importação de dados em formato JSON.
+6. **Backup Durável Automático (IndexedDB)**:
+   - A cada gravação (novo/editar/excluir/pagamento/importação), os dados são espelhados silenciosamente no IndexedDB, além do `localStorage`.
+   - Na inicialização, `localStorage` e IndexedDB são reconciliados pelo timestamp `savedAt`, carregando sempre a fonte mais recente e sincronizando a outra. Se uma das fontes for limpa (ex.: limpar cache/dados de sites), os dados são restaurados da outra.
+   - Falhas do IndexedDB (modo anônimo/privado, quota) são tratadas silenciosamente: o app continua funcionando normalmente apenas com `localStorage`.
+   - Botão **"Salvar agora"** (na aba Ajustes > Gerenciamento de Dados) força a sincronização manual das duas fontes com confirmação via toast. Sem dados, exibe um aviso.
+   - Indicador sutil de status do backup ("Backup automático ativo · última sincronização: data/hora").
 
 ---
 
@@ -54,5 +60,19 @@ O repositório já está configurado com **GitHub Actions** (`.github/workflows/
 - **HTML5 / CSS3** (Estrutura e layout mobile-first)
 - **Tailwind CSS** (Estilização moderna via CDN)
 - **JavaScript (ES6+)** (Lógica SPA, controle de datas e manipulação de estado)
+- **IndexedDB** (Backup durável independente do `localStorage`)
 - **Chart.js** (Gráficos analíticos)
 - **PWA (Manifest & Service Worker)** (Suporte a instalação na tela inicial e funcionamento offline)
+
+---
+
+## 🧪 Testes e Validação
+
+A lógica de conciliação entre `localStorage` e IndexedDB (`backup.js`) é pura e testada em Node.js, com casos que simulam cache limpo, fonte mais nova em cada lado, migração de dados legados, corrupção de fonte e exclusão total:
+
+```bash
+npm test          # Executa os testes de conciliação (test/reconcile.test.js)
+npm run lint      # Valida a sintaxe de backup.js, sw.js e do script inline do index.html
+```
+
+Para detalhes da implementação do backup durável (fluxos de gravação, regras da conciliação, tratamento de falhas e indicadores), veja [docs/backup.md](docs/backup.md).

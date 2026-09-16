@@ -139,6 +139,16 @@
                         <input type="file" id="importFile" onchange="importData(event)" accept=".json" class="hidden">
                     </label>
                 </div>
+                <div class="pt-3 mt-2 border-t border-slate-700/60 space-y-3">
+                    <button onclick="backupNow()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1 shadow-lg shadow-indigo-600/30 transition-all active:scale-95">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Salvar agora</span>
+                    </button>
+                    <p id="backupStatus" class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                        <i id="backupStatusIcon" class="fa-solid fa-shield-halved text-emerald-400"></i>
+                        <span id="backupStatusText">Preparando backup...</span>
+                    </p>
+                </div>
             </div>
 
             <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl space-y-2">
@@ -187,6 +197,11 @@
             <button onclick="installPWA()" class="bg-white text-indigo-700 font-bold px-3.5 py-2 rounded-xl text-xs shadow hover:bg-indigo-50 transition-all active:scale-95">Instalar</button>
             <button onclick="dismissInstallBanner()" class="text-indigo-200 hover:text-white p-1.5"><i class="fa-solid fa-xmark text-base"></i></button>
         </div>
+    </div>
+
+    <!-- Toast de Notificação -->
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] hidden">
+        <div id="toastBody" class="px-4 py-2.5 rounded-xl text-xs font-medium shadow-xl text-white"></div>
     </div>
 
     <!-- Modal Adicionar/Editar Devedor -->
@@ -254,6 +269,9 @@
         </div>
     </div>
 
+    <!-- Backup durável em IndexedDB -->
+    <script src="./backup.js"></script>
+
     <!-- JavaScript da Aplicação -->
     <script>
         // Registro do Service Worker para PWA
@@ -266,16 +284,14 @@
         }
 
         // Estado Global da Aplicação
-        let devedores = JSON.parse(localStorage.getItem('devedores_app')) || [];
+        let devedores = [];
         let statusChartInstance = null;
         let projectionChartInstance = null;
+        let toastTimer = null;
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
-            renderDevedores();
-            initCharts();
-            // Definir data padrão hoje no formulário
-            document.getElementById('dataAquisicao').valueAsDate = new Date();
+            initApp();
         });
 
         // Navegação SPA
@@ -382,7 +398,7 @@
         }
 
         function saveAndRefresh() {
-            localStorage.setItem('devedores_app', JSON.stringify(devedores));
+            Backup.save(devedores).then(updateBackupStatus);
             renderDevedores();
         }
 
@@ -702,7 +718,66 @@
             }
         }
 
+        async function initApp() {
+            devedores = await Backup.reconcileAndLoad();
+            // Definir data padrão hoje no formulário
+            document.getElementById('dataAquisicao').valueAsDate = new Date();
+            renderDevedores();
+            initCharts();
+            updateBackupStatus();
+        }
+
+        // Backup durável em IndexedDB
+        function backupNow() {
+            Backup.backupNow(devedores).then(result => {
+                if (result.empty) {
+                    showToast('Nenhum dado para salvar.', 'warn');
+                } else if (result.persisted) {
+                    showToast('Dados salvos com sucesso!', 'ok');
+                } else {
+                    showToast('Salvo apenas neste navegador (backup automático indisponível).', 'warn');
+                }
+                updateBackupStatus();
+            });
+        }
+
+        function updateBackupStatus() {
+            const text = document.getElementById('backupStatusText');
+            const icon = document.getElementById('backupStatusIcon');
+            if (!text || !icon) return;
+            const status = Backup.status();
+            if (!status.available) {
+                icon.className = 'fa-solid fa-shield-halved text-amber-400';
+                text.innerText = 'Backup automático indisponível neste dispositivo — dados salvos apenas neste navegador.';
+                return;
+            }
+            icon.className = 'fa-solid fa-shield-halved text-emerald-400';
+            text.innerText = status.lastSyncAt
+                ? `Backup automático ativo · última sincronização: ${formatDateTime(status.lastSyncAt)}`
+                : 'Backup automático ativo';
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            const body = document.getElementById('toastBody');
+            const styles = {
+                ok: 'bg-emerald-600 border-emerald-400',
+                warn: 'bg-amber-500 border-amber-300',
+                error: 'bg-rose-600 border-rose-400'
+            };
+            body.className = `px-4 py-2.5 rounded-xl text-xs font-medium shadow-xl text-white border ${styles[type] || styles.ok}`;
+            body.innerText = message;
+            toast.classList.remove('hidden');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('hidden'), 2600);
+        }
+
         // Utilidade de Data
+        function formatDateTime(ts) {
+            const d = new Date(ts);
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
         function formatDate(dateStr) {
             if (!dateStr) return '';
             const [ano, mes, dia] = dateStr.split('-');
