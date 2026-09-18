@@ -223,6 +223,13 @@
                     <label class="block text-xs font-medium text-slate-300 mb-1">Produto / Motivo</label>
                     <input type="text" id="produto" required placeholder="Ex: Smartphone X" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Quem Deve?</label>
+                    <select id="direcaoDivida" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="devem" selected>A pessoa está me devendo</option>
+                        <option value="devo">Eu estou devendo a pessoa</option>
+                    </select>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Data de Aquisição</label>
@@ -334,6 +341,7 @@
                     document.getElementById('devedorId').value = dev.id;
                     document.getElementById('nome').value = dev.nome;
                     document.getElementById('produto').value = dev.produto;
+                    document.getElementById('direcaoDivida').value = dev.direcao || 'devem';
                     document.getElementById('dataAquisicao').value = dev.dataAquisicao;
                     document.getElementById('numParcelas').value = dev.numParcelas;
                     document.getElementById('valorTotal').value = dev.valorTotal;
@@ -368,6 +376,7 @@
                     devedores[index].dataAquisicao = dataAquisicao;
                     devedores[index].numParcelas = numParcelas;
                     devedores[index].valorTotal = valorTotal;
+                    devedores[index].direcao = document.getElementById('direcaoDivida').value;
                     // Recalcular valor base da parcela
                     devedores[index].valorParcela = valorParcelaBase;
                 }
@@ -397,6 +406,7 @@
                     dataAquisicao,
                     numParcelas,
                     valorTotal,
+                    direcao: document.getElementById('direcaoDivida').value,
                     parcelas
                 };
                 devedores.push(novoDevedor);
@@ -463,17 +473,20 @@
                 // Próxima parcela pendente
                 const proxima = dev.parcelas.find(p => p.status === 'pendente');
                 let badgeHoje = '';
-                let cardBorder = 'border-slate-700/60';
+                const isDevo = dev.direcao === 'devo';
+                let cardClasses = isDevo
+                    ? 'bg-rose-900/40 border-rose-500/50'
+                    : 'bg-amber-900/40 border-amber-500/50';
 
                 if (proxima && proxima.vencimento === hojeStr) {
                     badgeHoje = `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1">
                         <i class="fa-solid fa-triangle-exclamation"></i> Vence Hoje!
                     </span>`;
-                    cardBorder = 'border-rose-500/60 shadow-lg shadow-rose-500/10';
+                    cardClasses = (isDevo ? 'bg-rose-900/40' : 'bg-amber-900/40') + ' border-rose-500/70 shadow-lg shadow-rose-500/10';
                 }
 
                 const html = `
-                    <div class="bg-slate-800 border ${cardBorder} rounded-2xl p-4 space-y-3 transition-all">
+                    <div class="${cardClasses} rounded-2xl p-4 space-y-3 transition-all">
                         <div class="flex justify-between items-start">
                             <div>
                                 <div class="flex items-center gap-2">
@@ -481,6 +494,10 @@
                                     ${badgeHoje}
                                 </div>
                                 <p class="text-xs text-slate-400 mt-0.5">📦 ${dev.produto}</p>
+                                <span class="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${isDevo ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}">
+                                    <i class="fa-solid ${isDevo ? 'fa-arrow-trend-down' : 'fa-arrow-trend-up'}"></i>
+                                    ${isDevo ? 'Você deve' : 'Devem a você'}
+                                </span>
                             </div>
                             <div class="text-right">
                                 <span class="text-xs font-bold text-emerald-400">R$ ${dev.valorTotal.toFixed(2)}</span>
