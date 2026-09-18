@@ -515,6 +515,12 @@
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Exportar Histórico via WhatsApp -->
+                        <button onclick="shareWhatsApp('${dev.id}')" class="w-full bg-emerald-600/15 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all active:scale-95" title="Enviar histórico via WhatsApp">
+                            <i class="fa-brands fa-whatsapp text-base"></i>
+                            <span>Enviar histórico via WhatsApp</span>
+                        </button>
                     </div>
                 `;
                 container.innerHTML += html;
@@ -572,6 +578,57 @@
 
             saveAndRefresh();
             closePagamentoModal();
+        }
+
+        // Enviar histórico do devedor via WhatsApp
+        function shareWhatsApp(id) {
+            const dev = devedores.find(d => d.id === id);
+            if (!dev) return;
+            const url = 'https://wa.me/?text=' + encodeURIComponent(buildHistoryMessage(dev));
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function buildHistoryMessage(dev) {
+            const totalPago = dev.parcelas.reduce((acc, p) => acc + ((p.valorOriginal || 0) - (p.valorRestante || 0)), 0);
+            const totalRestante = dev.parcelas.reduce((acc, p) => acc + (p.status === 'pago' ? 0 : (p.valorRestante || 0)), 0);
+            const todasPagas = dev.parcelas.every(p => p.status === 'pago');
+            const L = [];
+
+            L.push('📋 *HISTÓRICO DO DEVEDOR*');
+            L.push('━━━━━━━━━━━━━━━━━━━━━━━');
+            L.push(`👤 *Nome:* ${dev.nome}`);
+            L.push(`📦 *Produto/Motivo:* ${dev.produto}`);
+            L.push(`📅 *Aquisição:* ${formatDate(dev.dataAquisicao)}`);
+            L.push(`${todasPagas ? '✅ *Status:* QUITADO' : '⏳ *Status:* EM ABERTO'}`);
+            L.push(`💰 *Valor Total:* R$ ${dev.valorTotal.toFixed(2)}`);
+            L.push(`✅ *Total Pago:* R$ ${totalPago.toFixed(2)}`);
+            L.push(`⏳ *Saldo Devedor:* R$ ${totalRestante.toFixed(2)}`);
+            L.push('');
+            L.push('━━━━━ *PARCELAS* ━━━━━');
+
+            dev.parcelas.forEach(p => {
+                const original = (p.valorOriginal || 0);
+                const restante = (p.valorRestante || 0);
+                let situacao;
+                if (p.status === 'pago') {
+                    situacao = `✅ Paga — R$ ${original.toFixed(2)}`;
+                } else if (restante < original) {
+                    situacao = `⚠️ Parcial — Restam R$ ${restante.toFixed(2)}`;
+                } else {
+                    situacao = `⏳ Pendente — R$ ${restante.toFixed(2)}`;
+                }
+                L.push(`• *${p.numero}ª parcela* (${formatDate(p.vencimento)})\n   ${situacao}`);
+            });
+
+            L.push('━━━━━━━━━━━━━━━━━━━━━━━');
+            L.push('🤝 Compartilhado via DevedorApp');
+            return L.join('\n');
         }
 
         // Dashboard Analítica e Gráficos
