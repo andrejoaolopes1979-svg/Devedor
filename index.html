@@ -234,6 +234,11 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Data do Primeiro Pagamento</label>
+                    <input type="date" id="primeiroPagamento" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <p class="text-[10px] text-slate-400 mt-1">💡 As demais parcelas vencem 1 mês após a anterior.</p>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Valor Total (R$)</label>
                     <input type="number" step="0.01" id="valorTotal" required placeholder="Ex: 500.00" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
@@ -320,6 +325,7 @@
             document.getElementById('devedorId').value = '';
             document.getElementById('modalTitle').innerText = 'Novo Devedor';
             document.getElementById('dataAquisicao').valueAsDate = new Date();
+            document.getElementById('primeiroPagamento').valueAsDate = addDays(new Date(), 30);
 
             if (id) {
                 const dev = devedores.find(d => d.id === id);
@@ -331,6 +337,8 @@
                     document.getElementById('dataAquisicao').value = dev.dataAquisicao;
                     document.getElementById('numParcelas').value = dev.numParcelas;
                     document.getElementById('valorTotal').value = dev.valorTotal;
+                    const primeira = dev.parcelas && dev.parcelas[0] ? dev.parcelas[0].vencimento : '';
+                    document.getElementById('primeiroPagamento').value = primeira || addDays(new Date(), 30).toISOString().split('T')[0];
                 }
             }
             modal.classList.remove('hidden');
@@ -366,14 +374,15 @@
             } else {
                 // Criar novo com array de parcelas detalhadas
                 const parcelas = [];
-                const baseDate = new Date(dataAquisicao + 'T00:00:00');
+                const primeiraData = document.getElementById('primeiroPagamento').value || dataAquisicao;
+                const baseDate = new Date(primeiraData + 'T00:00:00');
                 
-                for (let i = 1; i <= numParcelas; i++) {
+                for (let i = 0; i < numParcelas; i++) {
                     let vencimento = new Date(baseDate);
-                    vencimento.setMonth(vencimento.getMonth() + i);
+                    if (i > 0) vencimento.setMonth(vencimento.getMonth() + i);
                     
                     parcelas.push({
-                        numero: i,
+                        numero: i + 1,
                         valorOriginal: valorParcelaBase,
                         valorRestante: valorParcelaBase,
                         vencimento: vencimento.toISOString().split('T')[0],
@@ -839,6 +848,11 @@
             if (!dateStr) return '';
             const [ano, mes, dia] = dateStr.split('-');
             return `${dia}/${mes}/${ano}`;
+        }
+        function addDays(date, days) {
+            const d = new Date(date);
+            d.setDate(d.getDate() + days);
+            return d;
         }
 
         // Captura do evento de Instalação PWA
