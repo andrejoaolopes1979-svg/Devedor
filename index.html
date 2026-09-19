@@ -941,22 +941,21 @@
                     try {
                         if (!navigator.canShare({ files: [file] })) continue;
                         showToast('Escolha o WhatsApp no menu de compartilhamento.', 'ok');
-                        await navigator.share({
-                            files: [file],
-                            title: 'Backup DevedorApp',
-                            text: 'Backup dos dados do DevedorApp'
-                        });
+                        // Compartilhar SOMENTE o arquivo: se vierem junto text/title,
+                        // o WhatsApp no Android recebe o texto e ignora o arquivo
+                        await navigator.share({ files: [file] });
                         return;
                     } catch (err) {
                         if (err.name === 'AbortError') return;
+                        console.error('Erro Web Share:', err);
                         break;
                     }
                 }
             }
 
-            // Navegador sem suporte a compartilhamento de arquivos (ex.: HTTP/localhost):
-            // baixa o .json para envio manual
-            showToast('Este navegador não compartilha arquivos. Baixando o .json...', 'warn');
+            // Navegador/app sem suporte a compartilhamento de arquivos:
+            // baixa o .json para envio manual pelo WhatsApp
+            showToast('Compartilhamento de arquivo não suportado aqui. Baixando o .json...', 'warn');
             exportData();
         }
 
