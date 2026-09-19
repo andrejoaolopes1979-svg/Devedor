@@ -92,26 +92,51 @@
                     <h3 id="dashTotalReceber" class="text-lg font-bold text-emerald-400 mt-1">R$ 0,00</h3>
                 </div>
                 <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
+                    <p class="text-xs text-slate-400 font-medium">Total a Pagar</p>
+                    <h3 id="dashTotalPagar" class="text-lg font-bold text-rose-400 mt-1">R$ 0,00</h3>
+                </div>
+                <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
                     <p class="text-xs text-slate-400 font-medium">Total Já Recebido</p>
                     <h3 id="dashTotalRecebido" class="text-lg font-bold text-indigo-400 mt-1">R$ 0,00</h3>
                 </div>
-            </div>
-
-            <!-- Gráfico de Status -->
-            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl">
-                <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
-                    <span>Status Geral das Dívidas</span>
-                    <i class="fa-solid fa-chart-pie text-indigo-400"></i>
-                </h4>
-                <div class="relative w-full h-48 flex justify-center items-center">
-                    <canvas id="statusChart"></canvas>
+                <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
+                    <p class="text-xs text-slate-400 font-medium">Total Já Pago</p>
+                    <h3 id="dashTotalPago" class="text-lg font-bold text-amber-400 mt-1">R$ 0,00</h3>
                 </div>
             </div>
 
-            <!-- Gráfico de Projeção Mensal -->
+            <!-- Saldo Final -->
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl shadow-sm">
+                <p class="text-xs text-slate-400 font-medium">Saldo Final (a receber − a pagar)</p>
+                <h3 id="dashSaldo" class="text-lg font-bold text-emerald-400 mt-1">R$ 0,00</h3>
+            </div>
+
+            <!-- Gráfico de Status por Direção -->
             <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl">
                 <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
-                    <span>Projeção de Recebimento (Próx. Meses)</span>
+                    <span>Status das Dívidas</span>
+                    <i class="fa-solid fa-chart-pie text-indigo-400"></i>
+                </h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900/60 rounded-xl p-3">
+                        <p class="text-[11px] font-semibold text-emerald-400 mb-2 text-center">A Receber</p>
+                        <div class="relative h-32">
+                            <canvas id="statusChartReceber"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/60 rounded-xl p-3">
+                        <p class="text-[11px] font-semibold text-rose-400 mb-2 text-center">A Pagar</p>
+                        <div class="relative h-32">
+                            <canvas id="statusChartPagar"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico de Projeção Mensal (Receber x Pagar) -->
+            <div class="bg-slate-800 border border-slate-700/60 p-4 rounded-2xl">
+                <h4 class="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-between">
+                    <span>Projeção Mensal (Receber × Pagar)</span>
                     <i class="fa-solid fa-chart-column text-indigo-400"></i>
                 </h4>
                 <div class="relative w-full h-48">
@@ -216,7 +241,7 @@
             <form id="devedorForm" onsubmit="saveDevedor(event)" class="space-y-3">
                 <input type="hidden" id="devedorId">
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Nome do Devedor</label>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Nome</label>
                     <input type="text" id="nome" required placeholder="Ex: Carlos Silva" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
@@ -297,7 +322,8 @@
 
         // Estado Global da Aplicação
         let devedores = [];
-        let statusChartInstance = null;
+        let statusChartReceberInstance = null;
+        let statusChartPagarInstance = null;
         let projectionChartInstance = null;
         let toastTimer = null;
 
@@ -660,30 +686,56 @@
         // Dashboard Analítica e Gráficos
         function updateDashboard() {
             let totalReceber = 0;
+            let totalPagar = 0;
             let totalRecebido = 0;
-            let quitadosCount = 0;
-            let pendentesCount = 0;
+            let totalPago = 0;
+            let receberPend = 0;
+            let receberQuit = 0;
+            let pagarPend = 0;
+            let pagarQuit = 0;
 
             devedores.forEach(dev => {
+                const isDevo = dev.direcao === 'devo';
+                const todasPagas = dev.parcelas.every(p => p.status === 'pago');
+
+                if (isDevo) {
+                    if (todasPagas) pagarQuit++;
+                    else pagarPend++;
+                } else {
+                    if (todasPagas) receberQuit++;
+                    else receberPend++;
+                }
+
                 dev.parcelas.forEach(p => {
-                    if (p.status === 'pago') {
-                        totalRecebido += (p.valorOriginal - (p.valorRestante || 0)); // computar o pago
+                    const pagoValor = (p.valorOriginal || 0) - (p.valorRestante || 0);
+                    if (isDevo) {
+                        totalPago += pagoValor;
+                        if (p.status !== 'pago') totalPagar += (p.valorRestante || 0);
                     } else {
-                        totalReceber += p.valorRestante;
+                        totalRecebido += pagoValor;
+                        if (p.status !== 'pago') totalReceber += (p.valorRestante || 0);
                     }
                 });
-                const todasPagas = dev.parcelas.every(p => p.status === 'pago');
-                if (todasPagas) quitadosCount++;
-                else pendentesCount++;
             });
 
             document.getElementById('dashTotalReceber').innerText = `R$ ${totalReceber.toFixed(2)}`;
+            document.getElementById('dashTotalPagar').innerText = `R$ ${totalPagar.toFixed(2)}`;
             document.getElementById('dashTotalRecebido').innerText = `R$ ${totalRecebido.toFixed(2)}`;
+            document.getElementById('dashTotalPago').innerText = `R$ ${totalPago.toFixed(2)}`;
 
-            // Atualizar Gráfico de Status (Pie)
-            if (statusChartInstance) {
-                statusChartInstance.data.datasets[0].data = [pendentesCount, quitadosCount];
-                statusChartInstance.update();
+            const saldo = totalReceber - totalPagar;
+            const saldoEl = document.getElementById('dashSaldo');
+            saldoEl.innerText = `R$ ${saldo.toFixed(2)}`;
+            saldoEl.className = `text-lg font-bold mt-1 ${saldo >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            // Atualizar Gráficos de Status (A Receber / A Pagar)
+            if (statusChartReceberInstance) {
+                statusChartReceberInstance.data.datasets[0].data = [receberPend, receberQuit];
+                statusChartReceberInstance.update();
+            }
+            if (statusChartPagarInstance) {
+                statusChartPagarInstance.data.datasets[0].data = [pagarPend, pagarQuit];
+                statusChartPagarInstance.update();
             }
 
             // Atualizar Gráfico de Projeção Mensal
@@ -691,9 +743,9 @@
         }
 
         function initCharts() {
-            // Gráfico de Status
-            const ctxStatus = document.getElementById('statusChart').getContext('2d');
-            statusChartInstance = new Chart(ctxStatus, {
+            // Gráfico de Status - A Receber
+            const ctxReceber = document.getElementById('statusChartReceber').getContext('2d');
+            statusChartReceberInstance = new Chart(ctxReceber, {
                 type: 'doughnut',
                 data: {
                     labels: ['Pendentes', 'Quitados'],
@@ -709,54 +761,96 @@
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: '#94a3b8', font: { size: 11 } }
+                            labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 8 }
                         }
                     }
                 }
             });
 
-            // Gráfico de Projeção
-            const ctxProj = document.getElementById('projectionChart').getContext('2d');
-            projectionChartInstance = new Chart(ctxProj, {
-                type: 'bar',
+            // Gráfico de Status - A Pagar
+            const ctxPagar = document.getElementById('statusChartPagar').getContext('2d');
+            statusChartPagarInstance = new Chart(ctxPagar, {
+                type: 'doughnut',
                 data: {
-                    labels: [],
+                    labels: ['Pendentes', 'Quitados'],
                     datasets: [{
-                        label: 'Valor a Receber (R$)',
-                        data: [],
-                        backgroundColor: '#6366f1',
-                        borderRadius: 6
+                        data: [0, 0],
+                        backgroundColor: ['#ef4444', '#f59e0b'],
+                        borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 8 }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Projeção (A Receber x A Pagar)
+            const ctxProj = document.getElementById('projectionChart').getContext('2d');
+            projectionChartInstance = new Chart(ctxProj, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'A Receber',
+                            data: [],
+                            backgroundColor: '#6366f1',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'A Pagar',
+                            data: [],
+                            backgroundColor: '#ef4444',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
-                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#1e293b' } }
+                        x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: '#1e293b' } }
                     },
                     plugins: {
-                        legend: { display: false }
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 8 }
+                        }
                     }
                 }
             });
         }
 
         function updateProjectionChart() {
-            // Agrupar valores pendentes por mês (YYYY-MM)
+            // Agrupar valores pendentes por mês (YYYY-MM), separando receber e pagar
             const mesesMap = {};
             devedores.forEach(dev => {
+                const isDevo = dev.direcao === 'devo';
                 dev.parcelas.forEach(p => {
                     if (p.status === 'pendente') {
                         const mesAno = p.vencimento.substring(0, 7); // YYYY-MM
-                        mesesMap[mesAno] = (mesesMap[mesAno] || 0) + p.valorRestante;
+                        if (!mesesMap[mesAno]) mesesMap[mesAno] = { receber: 0, pagar: 0 };
+                        if (isDevo) {
+                            mesesMap[mesAno].pagar += p.valorRestante || 0;
+                        } else {
+                            mesesMap[mesAno].receber += p.valorRestante || 0;
+                        }
                     }
                 });
             });
 
             // Ordenar meses
             const mesesOrdenados = Object.keys(mesesMap).sort();
-            const valores = mesesOrdenados.map(m => mesesMap[m]);
+            const valoresReceber = mesesOrdenados.map(m => mesesMap[m].receber);
+            const valoresPagar = mesesOrdenados.map(m => mesesMap[m].pagar);
             const labelsFormatados = mesesOrdenados.map(m => {
                 const [ano, mes] = m.split('-');
                 return `${mes}/${ano}`;
@@ -764,7 +858,8 @@
 
             if (projectionChartInstance) {
                 projectionChartInstance.data.labels = labelsFormatados.length ? labelsFormatados : ['Nenhum'];
-                projectionChartInstance.data.datasets[0].data = valores.length ? valores : [0];
+                projectionChartInstance.data.datasets[0].data = valoresReceber.length ? valoresReceber : [0];
+                projectionChartInstance.data.datasets[1].data = valoresPagar.length ? valoresPagar : [0];
                 projectionChartInstance.update();
             }
         }
