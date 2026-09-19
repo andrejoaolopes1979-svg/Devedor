@@ -66,7 +66,7 @@ O botão **"Enviar backup via WhatsApp"** (Ajustes > Gerenciamento de Dados) cha
 
 - Serializa `devedores` em JSON e monta o arquivo `devedores_backup_AAAA-MM-DD.json`.
 - No Android/iOS usa a **Web Share API** (`navigator.share` com `files`): abre o menu de compartilhamento do sistema e, ao escolher o **WhatsApp**, o arquivo `.json` é enviado como documento/anexo.
-- Se o navegador recusar o MIME `application/json` no `canShare`, tenta automaticamente o tipo genérico `application/octet-stream` para não cair no fallback.
+- O MIME type é negociado com `navigator.canShare` na ordem `text/plain` → `application/json` → `application/octet-stream` (o `text/plain` é o mais aceito pelo Chrome Android; a extensão `.json` é preservada).
 - Fallback (navegador sem suporte a compartilhamento de arquivos): mostra um aviso e baixa o `.json` para envio manual — a `wa.me` não permite anexar arquivos, apenas texto.
 
 ## Indicador de status
@@ -94,4 +94,4 @@ npm test       # 16 testes de conciliação
 npm run lint   # checagem de sintaxe de backup.js, sw.js e do script inline
 ```
 
-O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v3`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização.
+O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v4`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização.
