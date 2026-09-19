@@ -31,7 +31,7 @@ O **DevedorApp** é um aplicativo web progressivo (**PWA**) e de página única 
    - Na inicialização, `localStorage` e IndexedDB são reconciliados pelo timestamp `savedAt`, carregando sempre a fonte mais recente e sincronizando a outra. Se uma das fontes for limpa (ex.: limpar cache/dados de sites), os dados são restaurados da outra.
    - Falhas do IndexedDB (modo anônimo/privado, quota) são tratadas silenciosamente: o app continua funcionando normalmente apenas com `localStorage`.
    - Botão **"Salvar agora"** (na aba Ajustes > Gerenciamento de Dados) força a sincronização manual das duas fontes com confirmação via toast. Sem dados, exibe um aviso.
-   - Botão **"Enviar backup via WhatsApp"** (Ajustes > Gerenciamento de Dados) compartilha o arquivo `.json` completo dos dados pelo menu nativo do sistema — basta escolher o **WhatsApp** no menu de compartilhamento (em navegadores sem suporte a compartilhamento de arquivos, o `.json` é baixado para envio manual).
+   - Botão **"Enviar backup para o Google Drive"** (Ajustes > Gerenciamento de Dados) faz upload do arquivo `.json` completo dos dados na sua conta do Google (OAuth, escopo `drive.file`), após configurar o Client ID OAuth (veja [docs/backup.md](docs/backup.md)).
    - Indicador sutil de status do backup ("Backup automático ativo · última sincronização: data/hora").
 8. **Tema Preto/Laranja**: interface em fundo preto com destaque laranja (botões, ícones, gráficos, progresso e navegação), com `theme_color` e ícone do PWA na mesma paleta.
 

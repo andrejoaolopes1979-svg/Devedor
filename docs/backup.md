@@ -60,14 +60,24 @@ O botão **"Salvar agora"** (Ajustes > Gerenciamento de Dados) chama `Backup.bac
 - Sem dados (`devedores` vazio): mostra aviso "Nenhum dado para salvar." em vez de gravar.
 - Se o IndexedDB falhar: confirma via toast que o dado foi salvo apenas no navegador.
 
-## Envio do backup via WhatsApp
+## Backup no Google Drive
 
-O botão **"Enviar backup via WhatsApp"** (Ajustes > Gerenciamento de Dados) chama `shareBackupWhatsApp()`:
+O botão **"Enviar backup para o Google Drive"** (Ajustes > Gerenciamento de Dados) chama `uploadBackupDrive()`:
 
-- Serializa `devedores` em JSON e monta o arquivo `devedores_backup_AAAA-MM-DD.json`.
-- No Android/iOS usa a **Web Share API** (`navigator.share` com `files`): abre o menu de compartilhamento do sistema e, ao escolher o **WhatsApp**, o arquivo `.json` é enviado como documento/anexo. O compartilhamento envia **apenas** o arquivo (sem `text`/`title`), pois o WhatsApp no Android ignora o arquivo quando recebe texto+arquivo juntos.
-- O MIME type é negociado com `navigator.canShare` na ordem `text/plain` → `application/json` → `application/octet-stream` (o `text/plain` é o mais aceito pelo Chrome Android; a extensão `.json` é preservada).
-- Fallback (navegador sem suporte a compartilhamento de arquivos): mostra um aviso e baixa o `.json` para envio manual — a `wa.me` não permite anexar arquivos, apenas texto.
+- Serializa `devedores` em JSON e faz upload do arquivo `devedores_backup_AAAA-MM-DD.json` na raiz do Drive do usuário via **Google Drive API v3** (`uploadType=multipart`).
+- Usa **Google Identity Services** (OAuth 2.0, escopo `drive.file` — acesso somente a arquivos criados pelo app).
+- Exige um **Client ID OAuth** (aplicativo da Web), informado no campo "Client ID do Google Drive" e salvo em `localStorage` (`devedores_app_driveClientId`).
+
+### Como criar o Client ID
+
+1. Em [console.cloud.google.com](https://console.cloud.google.com) crie/abra um projeto.
+2. **APIs e serviços** → **Tela de consentimento do OAuth**: usuário externo, dados de teste, escopo `.../auth/drive.file`.
+3. **Credenciais** → **Criar credenciais** → **ID do cliente OAuth** → tipo **Aplicativo da Web**.
+4. Em **Origens de JavaScript autorizadas** adicione a origem do app publicada (ex.: `https://andrejoaolopes1979-svg.github.io`) e, para teste local, `http://localhost:8080`.
+5. Em **URIs de redirecionamento autorizados** adicione as mesmas origens com barra final (ex.: `https://andrejoaolopes1979-svg.github.io/`).
+6. Cole o ID (formato `xxxxx.apps.googleusercontent.com`) no campo em Ajustes.
+
+> A API de upload é chamada no primeiro uso/aprovação; um login é solicitado na primeira vez. O `drive.file` só permite ler/alterar os arquivos que o próprio app criar — seguro.
 
 ## Indicador de status
 
@@ -94,4 +104,4 @@ npm test       # 16 testes de conciliação
 npm run lint   # checagem de sintaxe de backup.js, sw.js e do script inline
 ```
 
-O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v5`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização.
+O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v6`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização.
