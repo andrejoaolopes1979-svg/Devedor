@@ -1,4 +1,4 @@
-const CACHE_NAME = 'devedor-pwa-v2';
+const CACHE_NAME = 'devedor-pwa-v3';
 const urlsToCache = [
   './index.html',
   './backup.js',
