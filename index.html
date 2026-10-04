@@ -18,10 +18,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a;
             color: #f8fafc;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+            box-sizing: border-box;
         }
         /* Esconder scrollbar mantendo funcionalidade */
         .no-scrollbar::-webkit-scrollbar {
@@ -192,7 +203,7 @@
     </main>
 
     <!-- Bottom Navigation Bar -->
-    <nav class="absolute bottom-0 left-0 right-0 bg-neutral-900/95 backdrop-blur border-t border-neutral-800 py-2 px-6 flex justify-around items-center z-20">
+    <nav class="absolute bottom-0 left-0 right-0 bg-neutral-900/95 backdrop-blur border-t border-neutral-800 px-6 pb-[calc(0.75rem+var(--safe-bottom))] pt-2 flex justify-around items-center z-20">
         <button onclick="switchTab('devedores')" id="nav-devedores" class="flex flex-col items-center text-orange-400 transition-colors">
             <i class="fa-solid fa-users text-lg"></i>
             <span class="text-[10px] font-medium mt-1">Devedores</span>
