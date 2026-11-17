@@ -85,4 +85,4 @@ npm test       # 16 testes de conciliação
 npm run lint   # checagem de sintaxe de backup.js, sw.js e do script inline
 ```
 
-O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v7`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização.
+O `CACHE_NAME` do Service Worker é versionado (atualmente `devedor-pwa-v8`); ao alterar `index.html`, `backup.js` ou `manifest.json`, incremente a versão para que usuários recebam a atualização. O evento `activate` remove versões antigas do cache para que uma versão obsoleta não continue sendo servida.

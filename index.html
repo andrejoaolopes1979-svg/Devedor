@@ -877,13 +877,47 @@
 
         // Exportar e Importar Dados
         function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(devedores, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `devedores_backup_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            const fileName = `devedores_backup_${new Date().toISOString().split('T')[0]}.json`;
+            const json = JSON.stringify(devedores, null, 2);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            const file = typeof File === 'function'
+                ? new File([blob], fileName, { type: blob.type })
+                : null;
+
+            // No iPhone/iPad a Web Share API abre a opção "Salvar em Arquivos".
+            if (file && typeof navigator.share === 'function' &&
+                typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], title: 'Backup de devedores' })
+                    .catch(err => {
+                        if (err && err.name === 'AbortError') return;
+                        downloadBackup(blob, fileName);
+                    });
+                return;
+            }
+
+            downloadBackup(blob, fileName);
+        }
+
+        function downloadBackup(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.rel = 'noopener';
+
+            if ('download' in anchor) {
+                anchor.download = fileName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                showToast('Backup exportado. Confira em Arquivos/Downloads.', 'ok');
+                return;
+            }
+
+            // iOS antigos: abre o JSON para o usuário salvar pelo menu Compartilhar.
+            window.open(url, '_blank', 'noopener');
+            showToast('Toque em Compartilhar > Salvar em Arquivos para guardar o JSON.', 'warn');
+            setTimeout(() => URL.revokeObjectURL(url), 300000);
         }
 
         function importData(event) {
